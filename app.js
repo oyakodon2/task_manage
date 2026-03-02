@@ -24,6 +24,11 @@ const signInBtn = document.getElementById('signInBtn');
 const signUpBtn = document.getElementById('signUpBtn');
 const signOutBtn = document.getElementById('signOutBtn');
 
+const ALLOWED_EMAIL_DOMAIN = '@j-asa.net';
+
+const isAllowedEmail = (email) =>
+  typeof email === 'string' && email.toLowerCase().endsWith(ALLOWED_EMAIL_DOMAIN);
+
 const STATUS_META = {
   todo: { label: 'To Do', className: 'todo' },
   doing: { label: '作業中', className: 'doing' },
@@ -471,6 +476,9 @@ signInBtn.addEventListener('click', async () => {
   const email = authEmailInput.value.trim();
   const password = authPasswordInput.value;
   if (!email || !password) return alert('メールアドレスとパスワードを入力してください。');
+  if (!isAllowedEmail(email)) {
+    return alert(`許可されたドメインのメールのみ利用可能です (${ALLOWED_EMAIL_DOMAIN})`);
+  }
 
   const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) return alert(`ログイン失敗: ${error.message}`);
@@ -481,6 +489,9 @@ signUpBtn.addEventListener('click', async () => {
   const email = authEmailInput.value.trim();
   const password = authPasswordInput.value;
   if (!email || !password) return alert('メールアドレスとパスワードを入力してください。');
+  if (!isAllowedEmail(email)) {
+    return alert(`許可されたドメインのメールのみ登録可能です (${ALLOWED_EMAIL_DOMAIN})`);
+  }
 
   const { error } = await supabaseClient.auth.signUp({ email, password });
   if (error) return alert(`新規登録失敗: ${error.message}`);
