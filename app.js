@@ -1,6 +1,6 @@
-const MINUTES_STORAGE_KEY = 'weekly_meeting_minutes_v3';
-const TASK_STORAGE_KEY = 'major_tasks_v3';
-const OWNER_STORAGE_KEY = 'owner_master_v2';
+const MINUTES_STORAGE_KEY = 'weekly_meeting_minutes_v4';
+const TASK_STORAGE_KEY = 'major_tasks_v4';
+const OWNER_STORAGE_KEY = 'owner_master_v3';
 
 const bodyEl = document.getElementById('minutesBody');
 const taskBodyEl = document.getElementById('taskBody');
@@ -17,6 +17,12 @@ const taskOwnerHiddenEl = document.getElementById('taskOwnerHidden');
 const minutesOwnerHiddenEl = document.getElementById('minutesOwnerHidden');
 const ownerListEl = document.getElementById('ownerList');
 const syncStatusEl = document.getElementById('syncStatus');
+const authStatusEl = document.getElementById('authStatus');
+const authEmailInput = document.getElementById('authEmailInput');
+const authPasswordInput = document.getElementById('authPasswordInput');
+const signInBtn = document.getElementById('signInBtn');
+const signUpBtn = document.getElementById('signUpBtn');
+const signOutBtn = document.getElementById('signOutBtn');
 
 const STATUS_META = {
   todo: { label: 'To Do', className: 'todo' },
@@ -32,6 +38,14 @@ const supabaseClient = hasSupabaseConfig && hasSupabaseSdk
   ? window.supabase.createClient(APP_CONFIG.supabaseUrl, APP_CONFIG.supabaseAnonKey)
   : null;
 
+let owners = [];
+let tasks = [];
+let minutes = [];
+let selectedTaskOwner = '';
+let selectedMinutesOwner = '';
+let currentUser = null;
+let realtimeChannel = null;
+
 const saveLocal = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 const loadLocal = (key, fallback) => {
   try {
@@ -41,12 +55,6 @@ const loadLocal = (key, fallback) => {
     return fallback;
   }
 };
-
-let owners = [];
-let tasks = [];
-let minutes = [];
-let selectedTaskOwner = '';
-let selectedMinutesOwner = '';
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -60,6 +68,55 @@ const toLabel = (isoDate) => {
   if (!isoDate) return '-';
   const [y, m, d] = isoDate.split('-');
   return `${y}年${Number(m)}月${Number(d)}日`;
+};
+
+const ensureCanEdit = () => {
+  if (!supabaseClient) return true;
+  if (currentUser) return true;
+  alert('編集するにはログインしてください。');
+  return false;
+};
+
+const setFormsEditable = (editable) => {
+  const submitButtons = [
+    ownerFormEl?.querySelector('button[type="submit"]'),
+    taskFormEl?.querySelector('button[type="submit"]'),
+    formEl?.querySelector('button[type="submit"]'),
+  ].filter(Boolean);
+
+  submitButtons.forEach((btn) => {
+    btn.disabled = !editable;
+    btn.style.opacity = editable ? '1' : '0.6';
+  });
+};
+
+const updateAuthUi = () => {
+  if (!supabaseClient) {
+    authStatusEl.textContent = '認証: ローカルモード';
+    signInBtn.disabled = true;
+    signUpBtn.disabled = true;
+    signOutBtn.disabled = true;
+    setFormsEditable(true);
+    return;
+  }
+
+  if (currentUser) {
+    authStatusEl.textContent = `認証: ${currentUser.email}`;
+    signOutBtn.disabled = false;
+    signInBtn.disabled = true;
+    signUpBtn.disabled = true;
+    authEmailInput.disabled = true;
+    authPasswordInput.disabled = true;
+    setFormsEditable(true);
+  } else {
+    authStatusEl.textContent = '認証: 未ログイン';
+    signOutBtn.disabled = true;
+    signInBtn.disabled = false;
+    signUpBtn.disabled = false;
+    authEmailInput.disabled = false;
+    authPasswordInput.disabled = false;
+    setFormsEditable(false);
+  }
 };
 
 const getQuery = () => searchInput.value.trim().toLowerCase();
@@ -159,6 +216,8 @@ const renderOwnerList = () => {
     del.className = 'owner-delete';
     del.textContent = '削除';
     del.addEventListener('click', async () => {
+      if (!ensureCanEdit()) return;
+
       const usedTasks = tasks.filter((t) => t.owner === name).length;
       const usedMinutes = minutes.filter((m) => m.owner === name).length;
       if (usedTasks > 0 || usedMinutes > 0) {
@@ -214,6 +273,7 @@ const renderTasks = () => {
       del.className = 'action-btn';
       del.textContent = '削除';
       del.addEventListener('click', async () => {
+        if (!ensureCanEdit()) return;
         if (supabaseClient) {
           const { error } = await supabaseClient.from('tasks').delete().eq('id', task.id);
           if (error) alert(`削除失敗: ${error.message}`);
@@ -256,6 +316,7 @@ const renderMinutes = () => {
       del.className = 'action-btn';
       del.textContent = '削除';
       del.addEventListener('click', async () => {
+        if (!ensureCanEdit()) return;
         if (supabaseClient) {
           const { error } = await supabaseClient.from('minutes').delete().eq('id', row.id);
           if (error) alert(`削除失敗: ${error.message}`);
@@ -277,6 +338,7 @@ const renderAll = () => {
   renderOwnerList();
   renderTasks();
   renderMinutes();
+  updateAuthUi();
 };
 
 const loadFromSupabase = async () => {
@@ -297,9 +359,10 @@ const loadFromSupabase = async () => {
   renderAll();
 };
 
-const subscribeRealtime = () => {
+const attachRealtime = () => {
+  if (!supabaseClient || realtimeChannel) return;
   const reload = () => loadFromSupabase().catch((e) => console.error(e));
-  supabaseClient
+  realtimeChannel = supabaseClient
     .channel('shared-minutes-channel')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'owners' }, reload)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, reload)
@@ -307,50 +370,132 @@ const subscribeRealtime = () => {
     .subscribe();
 };
 
-const initialize = async () => {
-  if (hasSupabaseConfig && !hasSupabaseSdk) {
-    syncStatusEl.textContent = '同期エラー: Supabase SDKの読込失敗';
-    owners = loadLocal(OWNER_STORAGE_KEY, ['田中', '佐藤', '鈴木', '山本']);
-    tasks = loadLocal(TASK_STORAGE_KEY, []);
-    minutes = loadLocal(MINUTES_STORAGE_KEY, []);
-    renderAll();
+const detachRealtime = async () => {
+  if (!supabaseClient || !realtimeChannel) return;
+  await supabaseClient.removeChannel(realtimeChannel);
+  realtimeChannel = null;
+};
+
+const initLocalMode = () => {
+  owners = loadLocal(OWNER_STORAGE_KEY, ['田中', '佐藤', '鈴木', '山本']);
+  tasks = loadLocal(TASK_STORAGE_KEY, []);
+  minutes = loadLocal(MINUTES_STORAGE_KEY, []);
+
+  if (tasks.length === 0) {
+    tasks = [
+      {
+        id: crypto.randomUUID(),
+        title: '役員情報CSVの差分取り込みフロー作成',
+        owner: '鈴木',
+        status: 'doing',
+        due: '2026-03-07',
+        note: '金曜レビューまでに叩き台作成',
+        created_at: new Date().toISOString(),
+      },
+    ];
+    saveLocal(TASK_STORAGE_KEY, tasks);
+  }
+  if (minutes.length === 0) {
+    minutes = [
+      {
+        id: crypto.randomUUID(),
+        date: '2026-03-01',
+        owner: '田中',
+        this_week: '売上速報の差分確認を実施。',
+        next_week: '来週までに注記案を作成。',
+        created_at: new Date().toISOString(),
+      },
+    ];
+    saveLocal(MINUTES_STORAGE_KEY, minutes);
+  }
+
+  saveLocal(OWNER_STORAGE_KEY, owners);
+  syncStatusEl.textContent = '同期: ローカル保存モード';
+  renderAll();
+};
+
+const initializeSupabaseAuth = async () => {
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    syncStatusEl.textContent = `同期エラー: ${error.message}`;
     return;
   }
 
-  if (supabaseClient) {
-    syncStatusEl.textContent = '同期: Supabase接続中...';
-    try {
-      await loadFromSupabase();
-      subscribeRealtime();
-      syncStatusEl.textContent = '同期: リアルタイム共有 ON';
-    } catch (e) {
-      syncStatusEl.textContent = `同期エラー: ${e.message}`;
-      console.error(e);
-    }
+  currentUser = data.session?.user || null;
+
+  if (currentUser) {
+    await loadFromSupabase();
+    attachRealtime();
+    syncStatusEl.textContent = '同期: リアルタイム共有 ON';
   } else {
-    owners = loadLocal(OWNER_STORAGE_KEY, ['田中', '佐藤', '鈴木', '山本']);
-    tasks = loadLocal(TASK_STORAGE_KEY, []);
-    minutes = loadLocal(MINUTES_STORAGE_KEY, []);
-    if (tasks.length === 0) {
-      tasks = [
-        { id: crypto.randomUUID(), title: '役員情報CSVの差分取り込みフロー作成', owner: '鈴木', status: 'doing', due: '2026-03-07', note: '金曜レビューまでに叩き台作成', created_at: new Date().toISOString() },
-      ];
-      saveLocal(TASK_STORAGE_KEY, tasks);
-    }
-    if (minutes.length === 0) {
-      minutes = [
-        { id: crypto.randomUUID(), date: '2026-03-01', owner: '田中', this_week: '売上速報の差分確認を実施。', next_week: '来週までに注記案を作成。', created_at: new Date().toISOString() },
-      ];
-      saveLocal(MINUTES_STORAGE_KEY, minutes);
-    }
-    saveLocal(OWNER_STORAGE_KEY, owners);
-    syncStatusEl.textContent = '同期: ローカル保存モード';
+    owners = [];
+    tasks = [];
+    minutes = [];
+    syncStatusEl.textContent = '同期: ログイン待ち';
     renderAll();
   }
+
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    currentUser = session?.user || null;
+
+    if (currentUser) {
+      syncStatusEl.textContent = '同期: リアルタイム共有 ON';
+      await loadFromSupabase().catch((e) => {
+        syncStatusEl.textContent = `同期エラー: ${e.message}`;
+      });
+      attachRealtime();
+    } else {
+      await detachRealtime();
+      owners = [];
+      tasks = [];
+      minutes = [];
+      syncStatusEl.textContent = '同期: ログイン待ち';
+      renderAll();
+    }
+    updateAuthUi();
+  });
+
+  updateAuthUi();
 };
+
+if (ownerPanelToggleBtn && ownerManagerCard) {
+  ownerPanelToggleBtn.addEventListener('click', () => {
+    const collapsed = ownerManagerCard.classList.toggle('collapsed');
+    ownerManagerCard.setAttribute('aria-hidden', String(collapsed));
+    ownerPanelToggleBtn.textContent = collapsed ? 'オーナー管理' : 'オーナー管理を閉じる';
+  });
+}
+
+signInBtn.addEventListener('click', async () => {
+  if (!supabaseClient) return;
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+  if (!email || !password) return alert('メールアドレスとパスワードを入力してください。');
+
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) return alert(`ログイン失敗: ${error.message}`);
+});
+
+signUpBtn.addEventListener('click', async () => {
+  if (!supabaseClient) return;
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+  if (!email || !password) return alert('メールアドレスとパスワードを入力してください。');
+
+  const { error } = await supabaseClient.auth.signUp({ email, password });
+  if (error) return alert(`新規登録失敗: ${error.message}`);
+  alert('新規登録を受け付けました。メール確認が必要な設定の場合は受信メールを確認してください。');
+});
+
+signOutBtn.addEventListener('click', async () => {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) alert(`ログアウト失敗: ${error.message}`);
+});
 
 ownerFormEl.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!ensureCanEdit()) return;
   const nameInput = document.getElementById('ownerNameInput');
   const newName = nameInput.value.trim();
   if (!newName) return;
@@ -371,6 +516,8 @@ ownerFormEl.addEventListener('submit', async (event) => {
 
 taskFormEl.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!ensureCanEdit()) return;
+
   const title = document.getElementById('taskTitleInput').value.trim();
   const owner = taskOwnerHiddenEl.value;
   const status = document.getElementById('taskStatusInput').value;
@@ -394,6 +541,8 @@ taskFormEl.addEventListener('submit', async (event) => {
 
 formEl.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!ensureCanEdit()) return;
+
   const date = document.getElementById('dateInput').value;
   const owner = minutesOwnerHiddenEl.value;
   const thisWeek = document.getElementById('thisWeekInput').value.trim();
@@ -414,20 +563,13 @@ formEl.addEventListener('submit', async (event) => {
   formEl.reset();
 });
 
-if (ownerPanelToggleBtn && ownerManagerCard) {
-  ownerPanelToggleBtn.addEventListener('click', () => {
-    const collapsed = ownerManagerCard.classList.toggle('collapsed');
-    ownerManagerCard.setAttribute('aria-hidden', String(collapsed));
-    ownerPanelToggleBtn.textContent = collapsed ? 'オーナー管理' : 'オーナー管理を閉じる';
-  });
-}
-
 searchInput.addEventListener('input', renderAll);
 
 exportBtn.addEventListener('click', () => {
   const payload = {
     exportedAt: new Date().toISOString(),
     mode: supabaseClient ? 'supabase' : 'local',
+    user: currentUser?.email || null,
     owners,
     majorTasks: tasks,
     meetingMinutes: minutes,
@@ -441,7 +583,22 @@ exportBtn.addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
-initialize().catch((e) => {
-  console.error(e);
-  syncStatusEl.textContent = `同期エラー: ${e.message}`;
-});
+(async () => {
+  if (hasSupabaseConfig && !hasSupabaseSdk) {
+    syncStatusEl.textContent = '同期エラー: Supabase SDKの読込失敗';
+    initLocalMode();
+    return;
+  }
+
+  if (supabaseClient) {
+    syncStatusEl.textContent = '同期: Supabase接続中...';
+    await initializeSupabaseAuth().catch((e) => {
+      syncStatusEl.textContent = `同期エラー: ${e.message}`;
+      console.error(e);
+    });
+    return;
+  }
+
+  initLocalMode();
+})();
+
