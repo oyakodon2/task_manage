@@ -182,7 +182,11 @@ const buildOwnerTabs = (targetEl, selectedName, onClick) => {
     button.type = 'button';
     button.className = `owner-tab${name === selectedName ? ' active' : ''}`;
     button.textContent = name;
-    button.addEventListener('click', () => onClick(name));
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onClick(name);
+    });
     targetEl.appendChild(button);
   });
 };
@@ -196,11 +200,11 @@ const renderOwnerTabs = () => {
 
   buildOwnerTabs(taskOwnerTabsEl, selectedTaskOwner, (name) => {
     selectedTaskOwner = name;
-    renderOwnerTabs();
+    renderAll();
   });
   buildOwnerTabs(minutesOwnerTabsEl, selectedMinutesOwner, (name) => {
     selectedMinutesOwner = name;
-    renderOwnerTabs();
+    renderAll();
   });
 };
 
@@ -612,4 +616,3 @@ exportBtn.addEventListener('click', () => {
 
   initLocalMode();
 })();
-
