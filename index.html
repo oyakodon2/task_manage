@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>週次ミーティング議事録</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">日本企業チーム</div>
+      <div class="subtitle">週次ミーティング議事録管理</div>
+    </header>
+
+    <main class="app-shell">
+      <section class="toolbar">
+        <h1>メインテーブル</h1>
+        <div class="toolbar-actions">
+          <span id="syncStatus" class="sync-status">同期: 未設定</span>
+          <input id="searchInput" type="search" placeholder="タスク・オーナー・コメントを検索" />
+          <button id="ownerPanelToggleBtn" type="button">オーナー管理</button>
+          <button id="exportBtn" type="button">JSONエクスポート</button>
+        </div>
+      </section>
+
+      <section id="ownerManagerCard" class="owner-manager-card collapsed" aria-hidden="true">
+        <h2>オーナー管理</h2>
+        <form id="ownerForm" class="owner-form">
+          <input id="ownerNameInput" type="text" maxlength="40" placeholder="新しい名前を登録 (例: 高橋)" required />
+          <button type="submit" class="primary">名前を登録</button>
+        </form>
+        <div id="ownerList" class="owner-list"></div>
+      </section>
+
+      <section class="major-task-card">
+        <h2>主要タスク</h2>
+        <form id="taskForm" class="task-form">
+          <label>
+            タスク
+            <input id="taskTitleInput" type="text" maxlength="80" required placeholder="例: 役員データ統合" />
+          </label>
+          <label>
+            オーナー
+            <div id="taskOwnerTabs" class="owner-tabs" aria-label="主要タスクのオーナー選択"></div>
+            <input id="taskOwnerHidden" type="hidden" required />
+          </label>
+          <label>
+            ステータス
+            <select id="taskStatusInput">
+              <option value="todo">To Do</option>
+              <option value="doing">作業中</option>
+              <option value="blocked">立ち往生案件</option>
+              <option value="done">完了</option>
+            </select>
+          </label>
+          <label>
+            期限
+            <input id="taskDueInput" type="date" />
+          </label>
+          <label class="wide">
+            メモ
+            <input id="taskNoteInput" type="text" maxlength="160" placeholder="補足メモ（任意）" />
+          </label>
+          <button type="submit" class="primary">追加</button>
+        </form>
+
+        <table class="task-table">
+          <thead>
+            <tr>
+              <th>タスク</th>
+              <th>オーナー</th>
+              <th>ステータス</th>
+              <th>期限</th>
+              <th>メモ</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="taskBody"></tbody>
+        </table>
+      </section>
+
+      <section class="entry-form-card">
+        <h2>議事録を追加</h2>
+        <form id="entryForm" class="entry-form">
+          <label>
+            日付
+            <input id="dateInput" type="date" required />
+          </label>
+          <label>
+            オーナー
+            <div id="minutesOwnerTabs" class="owner-tabs" aria-label="議事録のオーナー選択"></div>
+            <input id="minutesOwnerHidden" type="hidden" required />
+          </label>
+          <label class="wide">
+            今週コメント
+            <input id="thisWeekInput" type="text" maxlength="220" placeholder="今週の進捗・決定事項" />
+          </label>
+          <label class="wide">
+            来週コメント
+            <input id="nextWeekInput" type="text" maxlength="220" placeholder="来週の予定・課題" />
+          </label>
+          <button type="submit" class="primary">追加</button>
+        </form>
+      </section>
+
+      <section class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>オーナー</th>
+              <th>今週コメント</th>
+              <th>来週コメント</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="minutesBody"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./app-config.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
