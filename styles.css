@@ -1,0 +1,341 @@
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --line: #d6dbea;
+  --text: #202432;
+  --muted: #6a7388;
+  --blue: #1f6feb;
+  --todo: #4f8df5;
+  --doing: #f2aa3b;
+  --blocked: #e34b5e;
+  --done: #0ec57f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding: 18px 28px;
+}
+
+.brand {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.app-shell {
+  width: min(1240px, calc(100% - 40px));
+  margin: 24px auto 40px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.toolbar h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.sync-status {
+  font-size: 12px;
+  color: #4c5f86;
+  background: #eef3ff;
+  border: 1px solid #d5e2ff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.toolbar-actions input,
+.entry-form input,
+.task-form input,
+.task-form select,
+.owner-form input,
+button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+button {
+  background: #fff;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 700;
+}
+
+.owner-manager-card,
+.major-task-card,
+.entry-form-card,
+.table-card {
+  margin-top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.owner-manager-card.collapsed {
+  display: none;
+}
+
+.owner-manager-card h2,
+.major-task-card h2,
+.entry-form-card h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.owner-form {
+  display: flex;
+  gap: 10px;
+}
+
+.owner-form input {
+  flex: 1;
+}
+
+.owner-list {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.owner-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d0d8ea;
+  background: #f8faff;
+  color: #2d436e;
+  border-radius: 999px;
+  padding: 4px 8px 4px 10px;
+  font-size: 13px;
+}
+
+.owner-delete {
+  min-height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid #c8d4ef;
+  background: #fff;
+  color: #3d4d6d;
+  font-size: 12px;
+}
+
+.owner-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.owner-tab {
+  border: 1px solid #c9d3e8;
+  background: #f7f9ff;
+  color: #2f4a7d;
+  border-radius: 999px;
+  padding: 5px 10px;
+  min-height: 32px;
+  font-size: 13px;
+}
+
+.owner-tab.active {
+  background: #e5efff;
+  border-color: #8db3f8;
+  color: #114ba7;
+  font-weight: 700;
+}
+
+.task-form {
+  display: grid;
+  grid-template-columns: 1.3fr 1.2fr 190px 170px 1.4fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.entry-form {
+  display: grid;
+  grid-template-columns: 180px 1.1fr 1.5fr 1.5fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.task-form label,
+.entry-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.task-form .wide,
+.entry-form .wide {
+  min-width: 220px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  text-align: left;
+  background: #f7f9fd;
+  border-bottom: 1px solid var(--line);
+  padding: 12px;
+  font-size: 14px;
+}
+
+tbody td {
+  border-bottom: 1px solid #e4e8f2;
+  padding: 12px;
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.task-group-row td {
+  background: #fbfcff;
+  color: #39425a;
+  font-weight: 700;
+}
+
+.group-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-tag::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #96a3bf;
+}
+
+.group-tag.todo::before {
+  background: var(--todo);
+}
+
+.group-tag.doing::before {
+  background: var(--doing);
+}
+
+.group-tag.blocked::before {
+  background: var(--blocked);
+}
+
+.group-tag.done::before {
+  background: var(--done);
+}
+
+.status-badge {
+  display: inline-block;
+  min-width: 92px;
+  text-align: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  color: #fff;
+}
+
+.status-badge.todo {
+  background: var(--todo);
+}
+
+.status-badge.doing {
+  background: var(--doing);
+}
+
+.status-badge.blocked {
+  background: var(--blocked);
+}
+
+.status-badge.done {
+  background: var(--done);
+}
+
+td.date-cell {
+  width: 140px;
+  font-weight: 700;
+  color: #36415b;
+  background: #fbfcff;
+}
+
+tr.date-group-start td {
+  border-top: 3px solid #b8c4df;
+}
+
+tr.date-group-start td.date-cell {
+  border-top-color: #95a8cf;
+}
+
+.action-btn {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.empty-row td {
+  text-align: center;
+  color: var(--muted);
+  padding: 22px;
+}
+
+@media (max-width: 980px) {
+  .task-form,
+  .entry-form {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    display: grid;
+    gap: 12px;
+  }
+
+  .toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+
+  .owner-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+}
