@@ -50,6 +50,7 @@ let selectedTaskOwner = '';
 let selectedMinutesOwner = '';
 let currentUser = null;
 let realtimeChannel = null;
+let reloadTimer = null;
 
 const saveLocal = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 const loadLocal = (key, fallback) => {
@@ -370,7 +371,12 @@ const loadFromSupabase = async () => {
 
 const attachRealtime = () => {
   if (!supabaseClient || realtimeChannel) return;
-  const reload = () => loadFromSupabase().catch((e) => console.error(e));
+  const reload = () => {
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => {
+      loadFromSupabase().catch((e) => console.error(e));
+    }, 220);
+  };
   realtimeChannel = supabaseClient
     .channel('shared-minutes-channel')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'owners' }, reload)
@@ -380,6 +386,10 @@ const attachRealtime = () => {
 };
 
 const detachRealtime = async () => {
+  if (reloadTimer) {
+    clearTimeout(reloadTimer);
+    reloadTimer = null;
+  }
   if (!supabaseClient || !realtimeChannel) return;
   await supabaseClient.removeChannel(realtimeChannel);
   realtimeChannel = null;
@@ -516,8 +526,16 @@ ownerFormEl.addEventListener('submit', async (event) => {
   if (!newName) return;
 
   if (supabaseClient) {
-    const { error } = await supabaseClient.from('owners').insert({ name: newName });
+    const { data, error } = await supabaseClient
+      .from('owners')
+      .insert({ name: newName })
+      .select()
+      .single();
     if (error) return alert(`登録失敗: ${error.message}`);
+    if (data && !owners.includes(data.name)) {
+      owners.push(data.name);
+      renderAll();
+    }
   } else {
     if (!owners.includes(newName)) owners.push(newName);
     saveLocal(OWNER_STORAGE_KEY, owners);
@@ -543,8 +561,12 @@ taskFormEl.addEventListener('submit', async (event) => {
   const payload = { title, owner, status, due, note: note || null };
 
   if (supabaseClient) {
-    const { error } = await supabaseClient.from('tasks').insert(payload);
+    const { data, error } = await supabaseClient.from('tasks').insert(payload).select().single();
     if (error) return alert(`追加失敗: ${error.message}`);
+    if (data) {
+      tasks.push(data);
+      renderAll();
+    }
   } else {
     tasks.push({ id: crypto.randomUUID(), ...payload, created_at: new Date().toISOString() });
     saveLocal(TASK_STORAGE_KEY, tasks);
@@ -567,8 +589,12 @@ formEl.addEventListener('submit', async (event) => {
   const payload = { date, owner, this_week: thisWeek || null, next_week: nextWeek || null };
 
   if (supabaseClient) {
-    const { error } = await supabaseClient.from('minutes').insert(payload);
+    const { data, error } = await supabaseClient.from('minutes').insert(payload).select().single();
     if (error) return alert(`追加失敗: ${error.message}`);
+    if (data) {
+      minutes.push(data);
+      renderAll();
+    }
   } else {
     minutes.push({ id: crypto.randomUUID(), ...payload, created_at: new Date().toISOString() });
     saveLocal(MINUTES_STORAGE_KEY, minutes);
@@ -616,3 +642,4 @@ exportBtn.addEventListener('click', () => {
 
   initLocalMode();
 })();
+
