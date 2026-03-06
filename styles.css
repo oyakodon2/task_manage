@@ -92,6 +92,7 @@ body {
 .toolbar-actions input,
 .auth-bar input,
 .entry-form input,
+.entry-form textarea,
 .task-form input,
 .task-form select,
 .owner-form input,
